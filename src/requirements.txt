@@ -1,4 +1,9 @@
 fastapi
 uvicorn
 livekit-api
+livekit-agents
+livekit-plugins-speechmatics
+livekit-plugins-simli
+livekit-plugins-noise-cancellation
+mem0ai
 python-dotenv

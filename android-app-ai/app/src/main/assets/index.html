@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0a0a0a;
+      height: 100vh;
+      overflow: hidden;
+      font-family: -apple-system, sans-serif;
+    }
+
+    /* Main avatar video - fullscreen */
+    #avatar-video {
+      width: 100%;
+      height: 100vh;
+      object-fit: cover;
+      position: absolute;
+      top: 0; left: 0;
+    }
+
+    /* Dark overlay at bottom for controls */
+    .bottom-overlay {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 200px;
+      background: linear-gradient(transparent, rgba(0,0,0,0.85));
+      pointer-events: none;
+    }
+
+    /* Top bar */
+    #top-bar {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      padding: 16px;
+      background: linear-gradient(rgba(0,0,0,0.6), transparent);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    #agent-name {
+      color: white;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    #call-duration {
+      color: #4CAF50;
+      font-size: 14px;
+      margin-left: auto;
+      background: rgba(0,0,0,0.4);
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+
+    /* Status */
+    #status {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-size: 18px;
+      background: rgba(0,0,0,0.6);
+      padding: 12px 24px;
+      border-radius: 24px;
+      backdrop-filter: blur(10px);
+    }
+
+    /* Self camera PIP */
+    #self-video {
+      position: absolute;
+      bottom: 140px;
+      right: 16px;
+      width: 90px;
+      height: 130px;
+      border-radius: 16px;
+      object-fit: cover;
+      border: 2px solid rgba(255,255,255,0.4);
+      background: #1a1a1a;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+
+    #self-video.hidden { display: none; }
+
+    /* Controls */
+    #controls {
+      position: absolute;
+      bottom: 40px;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 16px;
+      padding: 0 20px;
+    }
+
+    .btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,0.15);
+      border: none;
+      border-radius: 50%;
+      width: 58px;
+      height: 58px;
+      font-size: 22px;
+      cursor: pointer;
+      backdrop-filter: blur(10px);
+      color: white;
+      transition: all 0.2s;
+      justify-content: center;
+    }
+
+    .btn:active { transform: scale(0.92); }
+    .btn.active { background: rgba(255,255,255,0.9); }
+    .btn.danger { background: #e53935; }
+    .btn.muted { background: rgba(229,57,53,0.8); }
+
+    .btn-label {
+      position: absolute;
+      bottom: -22px;
+      font-size: 10px;
+      color: rgba(255,255,255,0.7);
+      white-space: nowrap;
+    }
+
+    .btn-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      margin-bottom: 22px;
+    }
+
+    /* Speaking indicator */
+    #speaking-indicator {
+      position: absolute;
+      bottom: 130px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: none;
+      gap: 4px;
+      align-items: flex-end;
+      height: 24px;
+    }
+
+    #speaking-indicator.show { display: flex; }
+
+    .bar {
+      width: 4px;
+      background: #4CAF50;
+      border-radius: 2px;
+      animation: sound 0.8s infinite alternate;
+    }
+    .bar:nth-child(1) { height: 8px; animation-delay: 0s; }
+    .bar:nth-child(2) { height: 16px; animation-delay: 0.15s; }
+    .bar:nth-child(3) { height: 24px; animation-delay: 0.3s; }
+    .bar:nth-child(4) { height: 16px; animation-delay: 0.45s; }
+    .bar:nth-child(5) { height: 8px; animation-delay: 0.6s; }
+
+    @keyframes sound {
+      from { transform: scaleY(0.4); opacity: 0.6; }
+      to { transform: scaleY(1); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Avatar fullscreen -->
+<video id="avatar-video" autoplay playsinline></video>
+
+<!-- Gradient overlay -->
+<div class="bottom-overlay"></div>
+
+<!-- Top bar -->
+<div id="top-bar">
+  <div>
+    <div id="agent-name">RISA</div>
+    <div id="call-duration">Connecting...</div>
+  </div>
+</div>
+
+<!-- Status -->
+<div id="status">Connecting...</div>
+
+<!-- Speaking bars -->
+<div id="speaking-indicator">
+  <div class="bar"></div>
+  <div class="bar"></div>
+  <div class="bar"></div>
+  <div class="bar"></div>
+  <div class="bar"></div>
+</div>
+
+<!-- Self camera -->
+<video id="self-video" autoplay playsinline muted class="hidden"></video>
+
+<!-- Controls -->
+<div id="controls">
+  <div class="btn-wrap">
+    <button class="btn" id="mic-btn" onclick="toggleMic()">🎤</button>
+    <span class="btn-label">Mic</span>
+  </div>
+  <div class="btn-wrap">
+    <button class="btn danger" id="end-btn" onclick="endCall()">📵</button>
+    <span class="btn-label">End</span>
+  </div>
+  <div class="btn-wrap">
+    <button class="btn" id="cam-btn" onclick="toggleCamera()">📷</button>
+    <span class="btn-label">Camera</span>
+  </div>
+  <div class="btn-wrap">
+    <button class="btn" id="spk-btn" onclick="toggleSpeaker()">🔊</button>
+    <span class="btn-label">Speaker</span>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
+<script>
+  const { Room, RoomEvent, Track } = LivekitClient;
+
+  let room;
+  let isMuted = false;
+  let isCameraOn = false;
+  let isSpeakerMuted = false;
+  let cameraStream = null;
+  let audioElements = [];
+  let seconds = 0;
+  let timerInterval = null;
+
+  function startTimer() {
+    timerInterval = setInterval(() => {
+      seconds++;
+      const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+      const s = (seconds % 60).toString().padStart(2, '0');
+      document.getElementById('call-duration').innerText = m + ':' + s;
+    }, 1000);
+  }
+
+  window.startSession = async function(wsUrl, token) {
+    document.getElementById('status').innerText = 'Joining...';
+
+    room = new Room({
+      audioCaptureDefaults: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      }
+    });
+
+    room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+      if (track.kind === Track.Kind.Video) {
+        track.attach(document.getElementById('avatar-video'));
+        document.getElementById('status').style.display = 'none';
+      }
+      if (track.kind === Track.Kind.Audio) {
+        const audioEl = track.attach();
+        audioEl.volume = 1.0;
+        audioEl.autoplay = true;
+        document.body.appendChild(audioEl);
+        audioElements.push(audioEl);
+        audioEl.play().catch(e => console.log(e));
+      }
+    });
+
+    room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
+      const indicator = document.getElementById('speaking-indicator');
+      const isAgentSpeaking = speakers.some(s => s.identity !== 'android-user');
+      indicator.classList.toggle('show', isAgentSpeaking);
+    });
+
+    room.on(RoomEvent.Connected, () => {
+      document.getElementById('status').style.display = 'none';
+      startTimer();
+    });
+
+    room.on(RoomEvent.Disconnected, () => {
+      document.getElementById('call-duration').innerText = 'Ended';
+      clearInterval(timerInterval);
+    });
+
+    await room.connect(wsUrl, token);
+    await room.localParticipant.setMicrophoneEnabled(true);
+  }
+
+  async function toggleMic() {
+    if (!room) return;
+    isMuted = !isMuted;
+    await room.localParticipant.setMicrophoneEnabled(!isMuted);
+    const btn = document.getElementById('mic-btn');
+    btn.innerText = isMuted ? '🔇' : '🎤';
+    btn.classList.toggle('muted', isMuted);
+  }
+
+  async function toggleCamera() {
+    isCameraOn = !isCameraOn;
+    const btn = document.getElementById('cam-btn');
+    const selfVideo = document.getElementById('self-video');
+
+    if (isCameraOn) {
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        selfVideo.srcObject = cameraStream;
+        selfVideo.classList.remove('hidden');
+        btn.classList.add('active');
+        btn.innerText = '📸';
+      } catch(e) {
+        console.log('Camera error:', e);
+        isCameraOn = false;
+      }
+    } else {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(t => t.stop());
+        cameraStream = null;
+      }
+      selfVideo.classList.add('hidden');
+      btn.classList.remove('active');
+      btn.innerText = '📷';
+    }
+  }
+
+  function toggleSpeaker() {
+    isSpeakerMuted = !isSpeakerMuted;
+    audioElements.forEach(el => { el.muted = isSpeakerMuted; });
+    const btn = document.getElementById('spk-btn');
+    btn.innerText = isSpeakerMuted ? '🔇' : '🔊';
+    btn.classList.toggle('muted', isSpeakerMuted);
+  }
+
+  function endCall() {
+    if (room) room.disconnect();
+    if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
+    clearInterval(timerInterval);
+    document.getElementById('controls').style.display = 'none';
+    document.getElementById('status').innerText = 'Call Ended';
+    document.getElementById('status').style.display = 'block';
+    document.getElementById('call-duration').innerText = 'Ended';
+  }
+</script>
+</body>
+</html>
